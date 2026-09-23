@@ -1,50 +1,94 @@
-.calc-shell {
-  background: linear-gradient(160deg, #d8dadd, #b7bbc0);
-  border-radius: 22px;
-  padding: 18px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
-  max-width: 400px;
+:root {
+  /* Manual colors: change these variables for the calculator palette. */
+  --calc-ink: #111214;
+  --calc-blue: #2f3238;
+  --calc-blue-light: #555b66;
+  --calc-teal: #70c9a5;
+  --calc-amber: #f6d43c;
+  --calc-coral: #e05252;
+  --calc-lcd: #cddccb;
 }
-.calc-body { display: flex; flex-direction: column; gap: 14px; }
+
+.calc-shell {
+  /* Manual size: change max-width or padding to resize the whole calculator. */
+  background: linear-gradient(145deg, #343434, #111);
+  border: 1px solid #050505;
+  border-radius: 14px;
+  padding: 14px 18px 18px;
+  box-shadow: inset 0 0 0 1px #555, 0 12px 30px rgba(0,0,0,.3);
+  max-width: 420px;
+}
+.calc-body { display: flex; flex-direction: column; gap: 12px; }
+.calculator-brand { min-height: 42px; color: #d9d9d9; padding: 4px 6px 0; }
+.brand-name { color: #fff; font: italic 700 20px Georgia, serif; text-shadow: 0 2px 8px rgba(0,0,0,.35); }
 
 .calc-display {
+  /* Manual LCD size: change min-height for a taller or shorter display. */
   position: relative;
   background: #cddccb;
   border: 4px solid #2b2b2b;
   border-radius: 6px;
   padding: 10px 12px;
   font-family: 'Courier New', monospace;
-  min-height: 90px;
+  min-height: 160px;
+  box-shadow: inset 0 0 12px rgba(35,70,45,.18);
 }
 .status-row {
   display: flex;
   gap: 8px;
   font-size: 10px;
-  color: #3a4a3a;
+  color: #3f624e;
   margin-bottom: 4px;
 }
-.status-row .active { font-weight: bold; color: #0a3d0a; }
+.status-row .active { font-weight: bold; color: #13766d; }
 .expr-line {
-  font-size: 18px;
+  /* Manual typing size: change font-size for the expression being entered. */
+  font-size: 20px;
   min-height: 24px;
   word-break: break-all;
-  color: #10240f;
+  color: #152d27;
 }
+.natural-display { display: inline-block; color: inherit; vertical-align: middle; font-weight: 400; line-height: 1; }
+.expr-line .natural-display { font-size: 19px; } /* Manual typed-expression size. */
+.result-line .natural-display { font-size: 24px; } /* Manual answer size. */
+.natural-display .katex { color: inherit; }
+.natural-display .katex * { font-weight: 400; }
+.mixed-fraction { display: inline-flex; align-items: center; gap: 7px; line-height: 1; }
+.mixed-whole { display: inline-block; }
+.mixed-part { display: inline-flex; flex-direction: column; align-items: stretch; min-width: 24px; text-align: center; font-size: .78em; line-height: 1.05; }
+.mixed-rule { display: block; height: 1px; margin: 2px 0; background: currentColor; }
+.fraction-editor { display: inline-flex; flex-direction: column; min-width: 28px; min-height: 42px; justify-content: center; vertical-align: middle; font-size: 19px; line-height: 18px; text-align: center; }
+.fraction-part { display: block; min-width: 24px; min-height: 17px; padding: 0 4px; }
+.fraction-rule { display: block; height: 1px; min-width: 28px; background: currentColor; }
+.fraction-caret { display: inline-block; width: 1px; height: 16px; background: currentColor; vertical-align: middle; animation: blink 1s step-end infinite; }
+.fraction-placeholder { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; width: 24px; height: 30px; vertical-align: middle; }
+.fraction-slot { width: 18px; height: 9px; border: 1px solid #7f9bb8; background: rgba(255, 255, 255, .2); }
+.fraction-bar { width: 22px; height: 1px; margin: 2px 0; background: #10240f; }
 .caret {
   display: inline-block;
   width: 1px;
   height: 16px;
-  background: #10240f;
+  background: #152d27;
   animation: blink 1s step-end infinite;
   vertical-align: middle;
 }
 @keyframes blink { 50% { opacity: 0; } }
 .result-line {
+  /* Manual answer position: change bottom/right to move the result on the LCD. */
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  max-width: calc(100% - 24px);
   text-align: right;
   font-size: 22px;
-  font-weight: bold;
-  color: #05210a;
+  font-weight: 400;
+  line-height: 1;
+  margin: 0;
+  padding: 0;
+  color: #102d26;
 }
+.result-line.compact-result .natural-display { font-size: 16px; }
+.result-line.compact-result { white-space: nowrap; }
 .result-line.err { color: #a11; }
 
 .mode-overlay {
@@ -52,7 +96,7 @@
   top: 0;
   left: 0;
   right: 0;
-  background: #1c1c1c;
+  background: #172947;
   color: #fff;
   border-radius: 6px;
   z-index: 5;
@@ -60,45 +104,66 @@
   overflow-y: auto;
 }
 .mode-item { padding: 8px 12px; cursor: pointer; font-size: 13px; }
-.mode-item:hover { background: #3a3a3a; }
+.mode-item:hover { background: #2c4d78; }
 
 .keypad {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
+  /* Manual vertical spacing: change gap to add or remove space between rows. */
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
+.top-controls { display: grid; grid-template-columns: 58px 58px 86px 58px 58px; justify-content: space-between; gap: 0; align-items: center; margin: 0 6px 2px; }
+/* Manual top-button size: change these 58px values for SHIFT, ALPHA, MODE, and ON. */
+.top-controls > .key { width: 58px; min-height: 43px; }
+/* Manual replay-circle size: change width/height together to keep it circular. */
+.replay-pad { position: relative; width: 86px; height: 76px; justify-self: center; border-radius: 50%; background: linear-gradient(145deg, #3e454d, #24282d); box-shadow: inset 0 0 0 1px #505963, 0 2px 3px #000; }
+.replay-pad button { position: absolute; border: 0; background: transparent; color: #e8f7ff; font-size: 10px; cursor: pointer; padding: 5px; z-index: 1; }
+.replay-up { top: 2px; left: 37px; }
+.replay-left { left: 7px; top: 31px; }
+.replay-right { right: 7px; top: 31px; }
+.replay-down { bottom: 2px; left: 37px; }
+.replay-center { position: absolute; width: 27px; height: 27px; left: 30px; top: 25px; border-radius: 50%; background: #14171b; box-shadow: inset 0 1px 3px #000; }
+.keypad-row { display: grid; gap: 6px; }
+.keypad-row-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; width: 100%; }
+.keypad-row-4 .key { min-height: 43px; }
+.keypad-row-5 { grid-template-columns: repeat(5, 1fr); }
+.keypad-row-6 { grid-template-columns: repeat(6, 1fr); }
 .key {
+  /* Manual keypad-button size: change min-height and padding for all buttons. */
   position: relative;
   border: none;
   border-radius: 8px;
-  background: #34363c;
+  background: linear-gradient(#3f4249, #25272c);
   color: #eee;
-  padding: 10px 4px 6px;
+  padding: 9px 3px 6px;
   font-size: 13px;
   cursor: pointer;
-  min-height: 44px;
+  min-height: 41px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
 }
-.key:active { transform: translateY(1px); }
+/* Manual button appearance: change gradients, shadows, or border-radius for the button style. */
+.key { box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 3px 6px rgba(7,18,38,.3); transition: transform .15s ease, filter .15s ease, box-shadow .15s ease; }
+.key:hover { filter: brightness(1.14); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 5px 10px rgba(7,18,38,.35); }
+.key:active { transform: translateY(1px); filter: brightness(.96); }
 .key.disabled { opacity: 0.35; cursor: not-allowed; }
-.top-label { position: absolute; top: -11px; left: 2px; right: 2px; font-size: 8px; color: #9b553d; white-space: nowrap; text-align: center; }
-.shift-label { position: absolute; top: 2px; left: 4px; font-size: 8px; color: #f6d43c; }
-.alpha-label { position: absolute; top: 2px; right: 4px; font-size: 8px; color: #e05252; }
+.top-label { position: absolute; top: -12px; left: 2px; right: 2px; font-size: 7px; color: #ffd166; white-space: nowrap; text-align: center; line-height: 9px; }
+.shift-label { position: absolute; top: 2px; left: 4px; font-size: 8px; color: #ffd166; }
+.alpha-label { position: absolute; top: 2px; right: 4px; font-size: 8px; color: #ff8e86; }
 .main-label { font-size: 13px; }
 
-.k-num { background: #eceff1; color: #111; }
-.k-op { background: #4d5566; }
+/* Manual individual colors: edit these classes to change number, operator, function, and action buttons. */
+.k-num { background: linear-gradient(#fff, #d8dadd); color: #111; box-shadow: inset 0 -2px 0 #aaa; }
+.k-op { background: linear-gradient(#535b67, #30353c); }
 .k-fn { background: #2f3238; }
-.k-shift { background: #f6d43c; color: #222; }
-.k-alpha { background: #e05252; color: #fff; }
+.k-shift { background: linear-gradient(#ffe35a, #e5b91d); color: #222; }
+.k-alpha { background: linear-gradient(#ef6565, #c83e45); color: #fff; }
 .k-nav { background: #3d4a5c; }
 .k-on { background: #dfe3e6; color: #111; }
-.k-del { background: #2461c9; }
-.k-ac { background: #2461c9; }
-.k-eq { background: #1b8a3d; }
+.k-del, .k-ac { background: linear-gradient(#8dca4c, #4d9022); color: #12341c; }
+.k-eq { background: linear-gradient(#36a852, #168337); color: #092b1a; }
 
 .mode-panel, .history-panel {
   background: #fff;
@@ -134,10 +199,10 @@
 .error { color: #b00020; font-size: 13px; margin-top: 6px; }
 .error.small { font-size: 11px; }
 
-.history-panel { flex: 0 0 260px; max-height: 560px; overflow-y: auto; }
+.history-panel { flex: 0 0 260px; max-height: 560px; overflow-y: auto; background: linear-gradient(145deg, #343434, #111); color: #e8edf1; border: 1px solid #555; }
 .history-header { display: flex; justify-content: space-between; align-items: center; }
 .history-header button {
-  border: none; background: #eee; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 12px;
+  border: 1px solid #111; background: linear-gradient(#3f4249, #25272c); color: #eee; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 12px;
 }
 .history-panel ul { list-style: none; padding: 0; margin: 8px 0 0; }
 .history-panel li {
@@ -146,10 +211,10 @@
   border-bottom: 1px solid #eee;
   font-size: 13px;
 }
-.hist-expr { color: #555; font-family: monospace; }
+.hist-expr { color: #a8c9bc; font-family: monospace; }
 .hist-result { font-weight: bold; }
 .hist-del {
   position: absolute; top: 6px; right: 4px; border: none; background: transparent;
   color: #b00020; cursor: pointer; font-size: 14px;
 }
-.empty { color: #999; font-size: 12px; }
+.empty { color: #9aa7a2; font-size: 12px; }

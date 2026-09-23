@@ -1,10 +1,13 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import {
   calcEvaluate,
   decimalToFraction,
   fractionToString,
   solveNewton,
 } from "../engine/engine";
+import { parse as parseMath, simplify } from "mathjs";
 
 const MODES = [
   "COMP",
@@ -29,6 +32,202 @@ function preprocess(expr) {
     guard++;
   } while (out !== prev && guard < 10);
   return out;
+}
+
+function exactDisplayExpression(expr, fallback) {
+  const source = expr.replace(/\s+/g, "");
+  const radicalPair = source.match(
+    /^sqrt\(([^()]+)\)\/(\d+(?:\.\d+)?)\+sqrt\(\1\)\/(\d+(?:\.\d+)?)$/,
+  );
+  if (radicalPair) {
+    const firstDenominator = Number(radicalPair[2]);
+    const secondDenominator = Number(radicalPair[3]);
+    const numerator = firstDenominator + secondDenominator;
+    const denominator = firstDenominator * secondDenominator;
+    return `${numerator}*sqrt(${radicalPair[1]})/${denominator}`;
+  }
+  if (/sqrt\(|pi|\b(e)\b/.test(source)) return source;
+  try {
+    return simplify(source).toString();
+  } catch {
+    return String(fallback);
+  }
+}
+
+function displayExpression(value) {
+  const superscript = (text) =>
+    String(text).replace(
+      /[0-9-]/g,
+      (character) =>
+        ({
+          0: "⁰",
+          1: "¹",
+          2: "²",
+          3: "³",
+          4: "⁴",
+          5: "⁵",
+          6: "⁶",
+          7: "⁷",
+          8: "⁸",
+          9: "⁹",
+          "-": "⁻",
+        })[character],
+    );
+  return String(value)
+    .replace(/\basin\(/g, "sin⁻¹(")
+    .replace(/\bacos\(/g, "cos⁻¹(")
+    .replace(/\batan\(/g, "tan⁻¹(")
+    .replace(/cbrt\(/g, "∛(")
+    .replace(/sqrt\(/g, "√(")
+    .replace(/log10\(/g, "log(")
+    .replace(/exp\(/g, "eˣ(")
+    .replace(/\*10\^(-?\d+)/g, (_, exponent) => `×10${superscript(exponent)}`)
+    .replace(/\*10\^/g, "×10ˣ")
+    .replace(/\*/g, "×")
+    .replace(/\^\(-1\)/g, "⁻¹")
+    .replace(/\^3/g, "³")
+    .replace(/\^2/g, "²");
+}
+
+function scientificDisplay(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return null;
+  const absoluteValue = Math.abs(numericValue);
+  if (absoluteValue === 0 || (absoluteValue >= 1e-6 && absoluteValue < 1e9))
+    return null;
+  const [coefficient, exponent] = numericValue.toExponential(6).split("e");
+  const trimmedCoefficient = String(Number(coefficient));
+  const signedExponent = Number(exponent);
+  const superscript = String(signedExponent).replace(
+    /[0-9-]/g,
+    (character) =>
+      ({
+        0: "⁰",
+        1: "¹",
+        2: "²",
+        3: "³",
+        4: "⁴",
+        5: "⁵",
+        6: "⁶",
+        7: "⁷",
+        8: "⁸",
+        9: "⁹",
+        "-": "⁻",
+      })[character],
+  );
+  return `${trimmedCoefficient} × 10${superscript}`;
+}
+
+function NaturalDisplay({ value, className = "", isResult = false }) {
+  if (!value) return null;
+  if (!isResult) {
+    return (
+      <span className={`natural-display ${className}`}>
+        {displayExpression(value)}
+      </span>
+    );
+  }
+  const mixedFraction = String(value)
+    .trim()
+    .match(/^(-?\d+)\s+(\d+)\/(\d+)$/);
+  if (mixedFraction) {
+    const [, whole, numerator, denominator] = mixedFraction;
+    return (
+      <span className={`natural-display mixed-fraction ${className}`}>
+        <span className="mixed-whole">{whole}</span>
+        <span className="mixed-part">
+          <span>{numerator}</span>
+          <span className="mixed-rule" />
+          <span>{denominator}</span>
+        </span>
+      </span>
+    );
+  }
+  if (value === "/") {
+    return (
+      <span className={`natural-display fraction-placeholder ${className}`}>
+        <span className="fraction-slot" />
+        <span className="fraction-bar" />
+        <span className="fraction-slot" />
+      </span>
+    );
+  }
+  const scientificValue = scientificDisplay(value);
+  if (scientificValue) {
+    return (
+      <span className={`natural-display ${className}`}>{scientificValue}</span>
+    );
+  }
+  if (
+    /[+\-*/^,(]$/.test(String(value).trim()) ||
+    /\*(?!10\^)/.test(String(value)) ||
+    /\*10\^/.test(String(value))
+  ) {
+    return (
+      <span className={`natural-display ${className}`}>
+        {displayExpression(value)}
+      </span>
+    );
+  }
+  if (/\b(?:asin|acos|atan)\(/.test(String(value))) {
+    return (
+      <span className={`natural-display ${className}`}>
+        {displayExpression(value)}
+      </span>
+    );
+  }
+  try {
+    const tex = parseMath(String(value)).toTex({ parenthesis: "keep" });
+    return (
+      <span
+        className={`natural-display ${className}`}
+        dangerouslySetInnerHTML={{
+          __html: katex.renderToString(tex, {
+            displayMode: false,
+            throwOnError: false,
+          }),
+        }}
+      />
+    );
+  } catch {
+    return (
+      <span className={`natural-display ${className}`}>
+        {displayExpression(value)}
+      </span>
+    );
+  }
+}
+
+function FractionExpression({ value, cursor }) {
+  const slashIndex = value.indexOf("/");
+  if (slashIndex < 0) return null;
+  const numerator = value.slice(0, slashIndex) || "";
+  const denominator = value.slice(slashIndex + 1) || "";
+  const cursorInNumerator = cursor <= slashIndex;
+  const numeratorCursor = cursorInNumerator ? cursor : numerator.length;
+  const denominatorCursor = cursorInNumerator
+    ? -1
+    : Math.max(0, cursor - slashIndex - 1);
+
+  return (
+    <span className="fraction-editor">
+      <span className="fraction-part">
+        {displayExpression(numerator.slice(0, numeratorCursor))}
+        {cursorInNumerator && <span className="fraction-caret" />}
+        {displayExpression(numerator.slice(numeratorCursor))}
+      </span>
+      <span className="fraction-rule" />
+      <span className="fraction-part">
+        {displayExpression(
+          denominator.slice(0, denominatorCursor < 0 ? 0 : denominatorCursor),
+        )}
+        {denominatorCursor >= 0 && <span className="fraction-caret" />}
+        {displayExpression(
+          denominator.slice(denominatorCursor < 0 ? 0 : denominatorCursor),
+        )}
+      </span>
+    </span>
+  );
 }
 
 export default function Calculator({
@@ -101,10 +300,11 @@ export default function Calculator({
         Ans,
         M,
       });
-      const shown =
+      let shown =
         typeof result === "object" && result.toString
           ? result.toString()
           : result;
+      shown = exactDisplayExpression(clean, shown);
       setDisplay(String(shown));
       setAns(typeof result === "number" ? result : Ans);
       setError(false);
@@ -135,15 +335,54 @@ export default function Calculator({
     }
   }
 
-  function toggleFractionView() {
-    const num = parseFloat(display);
-    if (Number.isNaN(num)) return;
-    if (!fractionView) {
+  function toggleFractionView(showFraction = !fractionView) {
+    const value = String(display).trim();
+    const mixedMatch = value.match(/^(-?)(\d+)\s+(\d+)\/(\d+)$/);
+    const fractionMatch = value.match(/^(-?)(\d+)\/(\d+)$/);
+    let num;
+
+    if (mixedMatch) {
+      const sign = mixedMatch[1] === "-" ? -1 : 1;
+      num =
+        sign *
+        (Number(mixedMatch[2]) + Number(mixedMatch[3]) / Number(mixedMatch[4]));
+    } else if (fractionMatch) {
+      num =
+        Number(fractionMatch[1] + fractionMatch[2]) / Number(fractionMatch[3]);
+    } else {
+      try {
+        const evaluated = calcEvaluate(value, {
+          mode: angleUnit,
+          complexMode,
+          Ans,
+          M,
+        });
+        num = typeof evaluated === "number" ? evaluated : Number(value);
+      } catch {
+        num = Number(value);
+      }
+    }
+
+    if (!Number.isFinite(num)) return;
+    if (showFraction) {
       setDisplay(fractionToString(decimalToFraction(num)));
     } else {
       setDisplay(String(num));
     }
-    setFractionView(!fractionView);
+    setFractionView(showFraction);
+  }
+
+  function insertFraction() {
+    if (expr) {
+      insert("/");
+      return;
+    }
+    const startingValue =
+      display !== "Math ERROR" && display !== "0" ? display : "";
+    const nextExpr = `${startingValue}/`;
+    setExpr(nextExpr);
+    setCursor(startingValue.length);
+    setError(false);
   }
 
   function consumeModifiers(mainFn, shiftFn, hypFn, hypShiftFn) {
@@ -166,6 +405,11 @@ export default function Calculator({
       return;
     }
     if (btn.id === "HYP") {
+      if (shiftActive && btn.shiftAction) {
+        btn.shiftAction();
+        setShiftActive(false);
+        return;
+      }
       setHypActive((v) => !v);
       return;
     }
@@ -173,6 +417,12 @@ export default function Calculator({
     if (alphaActive && btn.alpha) {
       insert(btn.alpha);
       setAlphaActive(false);
+      return;
+    }
+
+    if (shiftActive && btn.shiftAction) {
+      btn.shiftAction();
+      setShiftActive(false);
       return;
     }
 
@@ -185,24 +435,13 @@ export default function Calculator({
       return;
     }
     if (btn.id === "UP") {
-      const idx = Math.min(histIdx + 1, localHistory.length - 1);
-      if (localHistory[idx]) {
-        setExpr(localHistory[idx].expression);
-        setCursor(localHistory[idx].expression.length);
-        setHistIdx(idx);
-      }
+      const fractionSlash = expr.indexOf("/");
+      setCursor(fractionSlash >= 0 ? fractionSlash : 0);
       return;
     }
     if (btn.id === "DOWN") {
-      const idx = Math.max(histIdx - 1, -1);
-      setHistIdx(idx);
-      if (idx === -1) {
-        setExpr("");
-        setCursor(0);
-      } else {
-        setExpr(localHistory[idx].expression);
-        setCursor(localHistory[idx].expression.length);
-      }
+      const fractionSlash = expr.indexOf("/");
+      setCursor(fractionSlash >= 0 ? fractionSlash + 1 : expr.length);
       return;
     }
     if (btn.id === "MENU") {
@@ -235,8 +474,13 @@ export default function Calculator({
         : doEvaluate();
       return;
     }
+    if (btn.id === "FRAC") {
+      insertFraction();
+      return;
+    }
     if (btn.id === "SD") {
-      toggleFractionView();
+      toggleFractionView(shiftActive);
+      setShiftActive(false);
       return;
     }
 
@@ -319,22 +563,68 @@ export default function Calculator({
     if (btn.main) insert(btn.main);
   }
 
+  useEffect(() => {
+    function handleKeyboard(event) {
+      const keyMap = {
+        ArrowLeft: "LEFT",
+        ArrowRight: "RIGHT",
+        ArrowUp: "UP",
+        ArrowDown: "DOWN",
+        Backspace: "DEL",
+        Delete: "DEL",
+      };
+      const buttonId = keyMap[event.key];
+      if (!buttonId) return;
+      event.preventDefault();
+      press({ id: buttonId });
+    }
+
+    window.addEventListener("keydown", handleKeyboard);
+    return () => window.removeEventListener("keydown", handleKeyboard);
+  });
+
   const rows = [
     [
-      { id: "SHIFT", main: "SHIFT", cls: "k-shift" },
-      { id: "ALPHA", main: "ALPHA", cls: "k-alpha" },
-      { id: "LEFT", main: "◀", cls: "k-nav" },
-      { id: "UP", main: "▲", cls: "k-nav" },
-      { id: "MENU", main: "MODE", shift: "SETUP", cls: "k-fn" },
+      {
+        id: "CALC",
+        main: "CALC",
+        shift: "SOLVE",
+        cls: "k-fn",
+        topLabel: "SOLVE",
+      },
+      {
+        id: "INTEGRAL",
+        main: "integral(",
+        shift: "d/dx",
+        cls: "k-fn",
+        label: "∫dx",
+        topLabel: "=",
+        shiftLabel: "d/dx",
+      },
+      {
+        id: "POWINV",
+        main: "^(-1)",
+        cls: "k-fn",
+        label: "x⁻¹",
+        topLabel: "x!",
+        shiftAction: () => insert("!"),
+      },
+      {
+        id: "LOGBLOCK",
+        main: "log10(",
+        cls: "k-fn",
+        label: "log□",
+        topLabel: "∑",
+        shiftAction: () => insert("sum("),
+      },
     ],
     [
-      { id: "RIGHT", main: "▶", cls: "k-nav" },
-      { id: "DOWN", main: "▼", cls: "k-nav" },
-      { id: "OPTN", main: "OPTN", cls: "k-fn" },
-      { id: "CALC", main: "CALC", shift: "SOLVE", cls: "k-fn" },
-      { id: "ON", main: "ON", cls: "k-on" },
-    ],
-    [
+      {
+        id: "FRAC",
+        cls: "k-fn",
+        label: "a b/c",
+        shiftLabel: "□/□",
+      },
       {
         id: "SQRT",
         main: "sqrt(",
@@ -386,17 +676,25 @@ export default function Calculator({
         alphaLabel: "[A]",
       },
       {
-        id: "FACT",
-        main: "!",
+        id: "DMS",
+        main: "dms(",
         cls: "k-fn",
-        label: "x!",
-        alpha: ",",
-        alphaLabel: "[,]",
+        label: "°′″",
+        alpha: "B",
+        alphaLabel: "[B]",
+      },
+      {
+        id: "HYP",
+        main: "hyp",
+        topLabel: "Abs",
+        shiftAction: () => insert("abs("),
+        cls: "k-fn",
       },
       {
         id: "SIN",
         label: "sin",
         shiftLabel: "sin⁻¹",
+        alpha: "D",
         alphaLabel: "[D]",
         cls: "k-fn",
       },
@@ -404,6 +702,7 @@ export default function Calculator({
         id: "COS",
         label: "cos",
         shiftLabel: "cos⁻¹",
+        alpha: "E",
         alphaLabel: "[E]",
         cls: "k-fn",
       },
@@ -411,88 +710,258 @@ export default function Calculator({
         id: "TAN",
         label: "tan",
         shiftLabel: "tan⁻¹",
+        alpha: "F",
         alphaLabel: "[F]",
         cls: "k-fn",
       },
     ],
     [
-      { id: "HYP", main: "hyp", cls: "k-fn" },
       {
-        id: "NCR",
-        main: " nCr ",
+        id: "RCL",
+        main: "M",
+        topLabel: "STO",
+        shiftAction: () => {
+          try {
+            const value = calcEvaluate(preprocess(expr || String(Ans)), {
+              mode: angleUnit,
+              complexMode,
+              Ans,
+              M,
+            });
+            setM(value);
+            setDisplay(`M = ${value}`);
+            clearAll();
+          } catch {
+            setDisplay("Math ERROR");
+            setError(true);
+          }
+        },
         cls: "k-fn",
-        label: "nCr",
-        shiftLabel: "nPr",
+        label: "RCL",
       },
-      { id: "NPR", main: " nPr ", cls: "k-fn", label: "nPr", shiftLabel: "π" },
-      { id: "PI", main: "pi", cls: "k-fn", label: "π", shiftLabel: "e" },
-      { id: "E", main: "e", cls: "k-fn", label: "e", shiftLabel: "i" },
-    ],
-    [
-      { id: "RCL", main: "M", cls: "k-fn", label: "RCL" },
-      { id: "STO", main: "", cls: "k-fn", label: "STO" },
-      { id: "LP", main: "(", cls: "k-fn" },
-      { id: "RP", main: ")", alpha: "X", cls: "k-fn" },
-      { id: "MPLUS", main: "", cls: "k-fn", label: "M+" },
+      {
+        id: "ENG",
+        main: "eng",
+        shift: "i",
+        topLabel: "←",
+        shiftAction: () => setCursor((c) => Math.max(0, c - 1)),
+        cls: "k-fn",
+        label: "ENG",
+      },
+      {
+        id: "LP",
+        main: "(",
+        topLabel: "%",
+        shiftAction: () => insert("/100"),
+        cls: "k-fn",
+      },
+      {
+        id: "RP",
+        main: ")",
+        topLabel: ",",
+        shiftAction: () => insert(","),
+        alpha: "X",
+        cls: "k-fn",
+      },
+      { id: "SD", main: "", topLabel: "a b/c", cls: "k-fn", label: "S⇔D" },
+      {
+        id: "MPLUS",
+        main: "",
+        topLabel: "M",
+        shiftAction: () => {
+          try {
+            const value = calcEvaluate(preprocess(expr || String(Ans)), {
+              mode: angleUnit,
+              complexMode,
+              Ans,
+              M,
+            });
+            setM((memory) => memory - value);
+            setDisplay(`M = ${M - value}`);
+            clearAll();
+          } catch {
+            setDisplay("Math ERROR");
+            setError(true);
+          }
+        },
+        cls: "k-fn",
+        label: "M+",
+      },
     ],
     [
       {
-        id: "DMS",
-        main: "dms(",
-        cls: "k-fn",
-        label: "°'\"",
-        alpha: "B",
-        alphaLabel: "[B]",
+        id: "7",
+        main: "7",
+        topLabel: "CONST",
+        shiftAction: () => insert("pi"),
+        cls: "k-num",
       },
-      { id: "PCT", main: "/100", cls: "k-fn", label: "%", shiftLabel: "," },
       {
-        id: "RAN",
-        main: "Ran()",
-        cls: "k-fn",
-        label: "Ran#",
-        shiftLabel: "RanInt",
+        id: "8",
+        main: "8",
+        topLabel: "CONV",
+        shiftAction: () => setDisplay("CONV: use MODE"),
+        cls: "k-num",
       },
-      { id: "MMINUS", main: "", cls: "k-fn", label: "M-" },
-      { id: "SD", main: "", cls: "k-fn", label: "S⇔D" },
+      {
+        id: "9",
+        main: "9",
+        topLabel: "CLR",
+        shiftAction: clearAll,
+        cls: "k-num",
+      },
+      {
+        id: "DEL",
+        main: "",
+        topLabel: "INS",
+        shiftAction: () => setCursor(expr.length),
+        cls: "k-del",
+      },
+      {
+        id: "AC",
+        main: "",
+        topLabel: "OFF",
+        shiftAction: fullReset,
+        cls: "k-ac",
+      },
     ],
     [
-      { id: "7", main: "7", topLabel: "CONST", cls: "k-num" },
-      { id: "8", main: "8", topLabel: "CONV", cls: "k-num" },
-      { id: "9", main: "9", topLabel: "CLR", cls: "k-num" },
-      { id: "DEL", main: "", topLabel: "INS", cls: "k-del" },
-      { id: "AC", main: "", topLabel: "OFF", cls: "k-ac" },
+      {
+        id: "4",
+        main: "4",
+        topLabel: "MATRIX",
+        shiftAction: () => {
+          setMode("MATRIX");
+          clearAll();
+        },
+        cls: "k-num",
+      },
+      {
+        id: "5",
+        main: "5",
+        topLabel: "VECTOR",
+        shiftAction: () => {
+          setMode("VECTOR");
+          clearAll();
+        },
+        cls: "k-num",
+      },
+      {
+        id: "6",
+        main: "6",
+        topLabel: "BASE-N",
+        shiftAction: () => {
+          setMode("BASE-N");
+          clearAll();
+        },
+        cls: "k-num",
+      },
+      {
+        id: "MUL",
+        main: "*",
+        topLabel: "nPr",
+        shiftAction: () => insert(" nPr "),
+        cls: "k-op",
+        label: "×",
+      },
+      {
+        id: "DIV",
+        main: "/",
+        topLabel: "nCr",
+        shiftAction: () => insert(" nCr "),
+        cls: "k-op",
+        label: "÷",
+      },
     ],
     [
-      { id: "4", main: "4", topLabel: "MATRIX", cls: "k-num" },
-      { id: "5", main: "5", topLabel: "VECTOR", cls: "k-num" },
-      { id: "6", main: "6", topLabel: "BASE-N", cls: "k-num" },
-      { id: "MUL", main: "*", topLabel: "nPr", cls: "k-op", label: "×" },
-      { id: "DIV", main: "/", topLabel: "nCr", cls: "k-op", label: "÷" },
+      {
+        id: "1",
+        main: "1",
+        topLabel: "STAT",
+        shiftAction: () => {
+          setMode("STAT");
+          clearAll();
+        },
+        cls: "k-num",
+      },
+      {
+        id: "2",
+        main: "2",
+        topLabel: "CMPLX",
+        shiftAction: () => {
+          setMode("CMPLX");
+          clearAll();
+        },
+        cls: "k-num",
+      },
+      {
+        id: "3",
+        main: "3",
+        topLabel: "BASE",
+        shiftAction: () => {
+          setMode("BASE-N");
+          clearAll();
+        },
+        cls: "k-num",
+      },
+      {
+        id: "ADD",
+        main: "+",
+        topLabel: "Pol",
+        shiftAction: () => insert("pol("),
+        cls: "k-op",
+      },
+      {
+        id: "SUB",
+        main: "-",
+        topLabel: "Rec",
+        shiftAction: () => insert("rec("),
+        cls: "k-op",
+        label: "−",
+      },
     ],
     [
-      { id: "1", main: "1", topLabel: "STAT", cls: "k-num" },
-      { id: "2", main: "2", topLabel: "CMPLX", cls: "k-num" },
-      { id: "3", main: "3", topLabel: "BASE", cls: "k-num" },
-      { id: "ADD", main: "+", topLabel: "Pol", cls: "k-op" },
-      { id: "SUB", main: "-", topLabel: "Rec", cls: "k-op", label: "−" },
-    ],
-    [
-      { id: "0", main: "0", topLabel: "Rnd", cls: "k-num" },
-      { id: "DOT", main: ".", topLabel: "Ran#", cls: "k-num" },
+      {
+        id: "0",
+        main: "0",
+        topLabel: "Rnd",
+        shiftAction: () => insert("round("),
+        cls: "k-num",
+      },
+      {
+        id: "DOT",
+        main: ".",
+        topLabel: "Ran#",
+        shiftAction: () => insert("Ran()"),
+        cls: "k-num",
+      },
       {
         id: "EXP10",
         main: "*10^",
         topLabel: "RanInt",
+        shiftAction: () => insert("randomInt("),
         cls: "k-fn",
         label: "×10ˣ",
       },
-      { id: "ANS", main: "Ans", topLabel: "DRG▶", cls: "k-fn" },
+      {
+        id: "ANS",
+        main: "Ans",
+        topLabel: "DRG▶",
+        shiftAction: () =>
+          setAngleUnit((u) =>
+            u === "DEG" ? "RAD" : u === "RAD" ? "GRAD" : "DEG",
+          ),
+        cls: "k-fn",
+      },
       { id: "EQ", main: "", cls: "k-eq", label: "=" },
     ],
   ];
 
   return (
     <div className="calc-body">
+      <div className="calculator-brand">
+        <div className="brand-name">fx-991ES PLUS</div>
+      </div>
       <div className="calc-display">
         <div className="status-row">
           <span className={shiftActive ? "active" : ""}>S</span>
@@ -503,11 +972,21 @@ export default function Calculator({
           {M !== 0 && <span className="active">M</span>}
         </div>
         <div className="expr-line">
-          {expr.slice(0, cursor)}
-          <span className="caret" />
-          {expr.slice(cursor)}
+          {expr.includes("/") ? (
+            <FractionExpression value={expr} cursor={cursor} />
+          ) : (
+            <>
+              <NaturalDisplay value={expr.slice(0, cursor)} />
+              <span className="caret" />
+              <NaturalDisplay value={expr.slice(cursor)} />
+            </>
+          )}
         </div>
-        <div className={`result-line ${error ? "err" : ""}`}>{display}</div>
+        <div
+          className={`result-line ${error ? "err" : ""} ${String(display).length > 12 ? "compact-result" : ""}`}
+        >
+          <NaturalDisplay value={display} isResult />
+        </div>
         {showMenu && (
           <div className="mode-overlay">
             {MODES.map((m) => (
@@ -526,29 +1005,70 @@ export default function Calculator({
           </div>
         )}
       </div>
-      <div className="keypad">
-        {rows.flat().map((btn) => (
-          <button
-            key={btn.id}
-            className={`key ${btn.cls || ""} ${btn.disabled ? "disabled" : ""}`}
-            disabled={btn.disabled}
-            onClick={() => press(btn)}
-          >
-            {btn.topLabel && <span className="top-label">{btn.topLabel}</span>}
-            {btn.shiftLabel && (
-              <span className="shift-label">{btn.shiftLabel}</span>
-            )}
-            {btn.alphaLabel && (
-              <span className="alpha-label">{btn.alphaLabel}</span>
-            )}
-            <span className="main-label">
-              {btn.label !== undefined
-                ? btn.label
-                : btn.main === ""
-                  ? btn.id
-                  : btn.main.replace(/\($/, "")}
-            </span>
+      <div className="top-controls">
+        <button className="key k-shift" onClick={() => press({ id: "SHIFT" })}>
+          SHIFT
+        </button>
+        <button className="key k-alpha" onClick={() => press({ id: "ALPHA" })}>
+          ALPHA
+        </button>
+        <div className="replay-pad" aria-label="Replay navigation">
+          <button className="replay-up" onClick={() => press({ id: "UP" })}>
+            ▲
           </button>
+          <button className="replay-left" onClick={() => press({ id: "LEFT" })}>
+            ◀
+          </button>
+          <span className="replay-center" />
+          <button
+            className="replay-right"
+            onClick={() => press({ id: "RIGHT" })}
+          >
+            ▶
+          </button>
+          <button className="replay-down" onClick={() => press({ id: "DOWN" })}>
+            ▼
+          </button>
+        </div>
+        <button className="key k-fn" onClick={() => press({ id: "MENU" })}>
+          MODE
+        </button>
+        <button className="key k-on" onClick={() => press({ id: "ON" })}>
+          ON
+        </button>
+      </div>
+      <div className="keypad">
+        {rows.map((row, rowIndex) => (
+          <div
+            className={`keypad-row keypad-row-${row.length}`}
+            key={`row-${rowIndex}`}
+          >
+            {row.map((btn) => (
+              <button
+                key={btn.id}
+                className={`key ${btn.cls || ""} ${btn.disabled ? "disabled" : ""}`}
+                disabled={btn.disabled}
+                onClick={() => press(btn)}
+              >
+                {btn.topLabel && (
+                  <span className="top-label">{btn.topLabel}</span>
+                )}
+                {btn.shiftLabel && (
+                  <span className="shift-label">{btn.shiftLabel}</span>
+                )}
+                {btn.alphaLabel && (
+                  <span className="alpha-label">{btn.alphaLabel}</span>
+                )}
+                <span className="main-label">
+                  {btn.label !== undefined
+                    ? btn.label
+                    : btn.main === ""
+                      ? btn.id
+                      : btn.main.replace(/\($/, "")}
+                </span>
+              </button>
+            ))}
+          </div>
         ))}
       </div>
     </div>

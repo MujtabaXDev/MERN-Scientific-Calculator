@@ -1,16 +1,22 @@
-import React, { useState } from 'react';
-import Calculator from './components/Calculator';
-import History from './components/History';
-import { StatPanel, EqnPanel, MatrixPanel, VectorPanel, BaseNPanel, TablePanel, PolRecPanel } from './components/ModePanels';
-import { saveHistory } from './api';
-import './components/Calculator.css';
+import React, { useState } from "react";
+import Calculator from "./components/Calculator";
+import History from "./components/History";
+import {
+  StatPanel,
+  EqnPanel,
+  MatrixPanel,
+  VectorPanel,
+  BaseNPanel,
+  TablePanel,
+} from "./components/ModePanels";
+import { saveHistory } from "./api";
+import "./components/Calculator.css";
 
 export default function App() {
-  const [mode, setMode] = useState('COMP');
-  const [angleUnit, setAngleUnit] = useState('DEG');
+  const [mode, setMode] = useState("COMP");
+  const [angleUnit, setAngleUnit] = useState("DEG");
   const [refreshKey, setRefreshKey] = useState(0);
   const [showHistory, setShowHistory] = useState(true);
-  const [showPolRec, setShowPolRec] = useState(false);
 
   async function handleResult(entry) {
     try {
@@ -24,10 +30,11 @@ export default function App() {
   return (
     <div className="app">
       <div className="app-header">
-        <h1>fx-991ES PLUS — MERN Clone</h1>
+        <h1></h1>
         <div className="header-actions">
-          <button onClick={() => setShowPolRec((v) => !v)}>Pol/Rec</button>
-          <button onClick={() => setShowHistory((v) => !v)}>{showHistory ? 'Hide' : 'Show'} History</button>
+          <button onClick={() => setShowHistory((v) => !v)}>
+            {showHistory ? "Hide" : "Show"} History
+          </button>
         </div>
       </div>
       <div className="app-main">
@@ -41,18 +48,18 @@ export default function App() {
               onResult={handleResult}
             />
           </div>
-          {showPolRec && <PolRecPanel />}
-          {mode === 'STAT' && <StatPanel />}
-          {mode === 'EQN' && <EqnPanel />}
-          {mode === 'MATRIX' && <MatrixPanel />}
-          {mode === 'VECTOR' && <VectorPanel />}
-          {mode === 'BASE-N' && <BaseNPanel />}
-          {mode === 'TABLE' && <TablePanel mode={mode} angleUnit={angleUnit} />}
+          {mode === "STAT" && <StatPanel />}
+          {mode === "EQN" && <EqnPanel />}
+          {mode === "MATRIX" && <MatrixPanel />}
+          {mode === "VECTOR" && <VectorPanel />}
+          {mode === "BASE-N" && <BaseNPanel />}
+          {mode === "TABLE" && <TablePanel mode={mode} angleUnit={angleUnit} />}
         </div>
         {showHistory && <History refreshKey={refreshKey} />}
       </div>
       <footer>
-        MongoDB + Express backend persists calculation history · React + mathjs frontend implements the math engine
+        MongoDB + Express backend persists calculation history · React + mathjs
+        frontend implements the math engine
       </footer>
     </div>
   );
