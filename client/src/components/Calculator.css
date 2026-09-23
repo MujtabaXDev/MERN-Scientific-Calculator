@@ -1,0 +1,155 @@
+.calc-shell {
+  background: linear-gradient(160deg, #d8dadd, #b7bbc0);
+  border-radius: 22px;
+  padding: 18px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  max-width: 400px;
+}
+.calc-body { display: flex; flex-direction: column; gap: 14px; }
+
+.calc-display {
+  position: relative;
+  background: #cddccb;
+  border: 4px solid #2b2b2b;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: 'Courier New', monospace;
+  min-height: 90px;
+}
+.status-row {
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  color: #3a4a3a;
+  margin-bottom: 4px;
+}
+.status-row .active { font-weight: bold; color: #0a3d0a; }
+.expr-line {
+  font-size: 18px;
+  min-height: 24px;
+  word-break: break-all;
+  color: #10240f;
+}
+.caret {
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  background: #10240f;
+  animation: blink 1s step-end infinite;
+  vertical-align: middle;
+}
+@keyframes blink { 50% { opacity: 0; } }
+.result-line {
+  text-align: right;
+  font-size: 22px;
+  font-weight: bold;
+  color: #05210a;
+}
+.result-line.err { color: #a11; }
+
+.mode-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #1c1c1c;
+  color: #fff;
+  border-radius: 6px;
+  z-index: 5;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.mode-item { padding: 8px 12px; cursor: pointer; font-size: 13px; }
+.mode-item:hover { background: #3a3a3a; }
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+.key {
+  position: relative;
+  border: none;
+  border-radius: 8px;
+  background: #34363c;
+  color: #eee;
+  padding: 10px 4px 6px;
+  font-size: 13px;
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.key:active { transform: translateY(1px); }
+.key.disabled { opacity: 0.35; cursor: not-allowed; }
+.top-label { position: absolute; top: -11px; left: 2px; right: 2px; font-size: 8px; color: #9b553d; white-space: nowrap; text-align: center; }
+.shift-label { position: absolute; top: 2px; left: 4px; font-size: 8px; color: #f6d43c; }
+.alpha-label { position: absolute; top: 2px; right: 4px; font-size: 8px; color: #e05252; }
+.main-label { font-size: 13px; }
+
+.k-num { background: #eceff1; color: #111; }
+.k-op { background: #4d5566; }
+.k-fn { background: #2f3238; }
+.k-shift { background: #f6d43c; color: #222; }
+.k-alpha { background: #e05252; color: #fff; }
+.k-nav { background: #3d4a5c; }
+.k-on { background: #dfe3e6; color: #111; }
+.k-del { background: #2461c9; }
+.k-ac { background: #2461c9; }
+.k-eq { background: #1b8a3d; }
+
+.mode-panel, .history-panel {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+.mode-panel h3 { margin-top: 0; }
+.mode-panel .hint { font-size: 12px; color: #777; }
+.mode-panel input, .mode-panel select {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  margin: 4px 4px 4px 0;
+}
+.mode-panel button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  background: #2f3542;
+  color: #fff;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.field-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0; }
+.field-grid label { font-size: 12px; display: flex; flex-direction: column; gap: 2px; }
+.matrix-grid { display: grid; gap: 6px; max-width: 260px; margin-bottom: 8px; }
+.matrix-grid input { width: 100%; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+.result-box { margin-top: 10px; font-weight: bold; font-size: 15px; }
+.result-table { border-collapse: collapse; margin-top: 10px; }
+.result-table td, .result-table th { border: 1px solid #ddd; padding: 6px 10px; text-align: left; font-size: 13px; }
+.error { color: #b00020; font-size: 13px; margin-top: 6px; }
+.error.small { font-size: 11px; }
+
+.history-panel { flex: 0 0 260px; max-height: 560px; overflow-y: auto; }
+.history-header { display: flex; justify-content: space-between; align-items: center; }
+.history-header button {
+  border: none; background: #eee; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 12px;
+}
+.history-panel ul { list-style: none; padding: 0; margin: 8px 0 0; }
+.history-panel li {
+  position: relative;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+}
+.hist-expr { color: #555; font-family: monospace; }
+.hist-result { font-weight: bold; }
+.hist-del {
+  position: absolute; top: 6px; right: 4px; border: none; background: transparent;
+  color: #b00020; cursor: pointer; font-size: 14px;
+}
+.empty { color: #999; font-size: 12px; }
