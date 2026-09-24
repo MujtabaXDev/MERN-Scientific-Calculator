@@ -57,10 +57,6 @@ export default function App() {
         </div>
         {showHistory && <History refreshKey={refreshKey} />}
       </div>
-      <footer>
-        MongoDB + Express backend persists calculation history · React + mathjs
-        frontend implements the math engine
-      </footer>
     </div>
   );
 }

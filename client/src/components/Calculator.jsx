@@ -47,6 +47,7 @@ function exactDisplayExpression(expr, fallback) {
     return `${numerator}*sqrt(${radicalPair[1]})/${denominator}`;
   }
   if (/sqrt\(|pi|\b(e)\b/.test(source)) return source;
+  if (/^[0-9+\-*/^().\s]+$/.test(source)) return String(fallback);
   try {
     return simplify(source).toString();
   } catch {
@@ -152,10 +153,13 @@ function NaturalDisplay({ value, className = "", isResult = false }) {
       </span>
     );
   }
-  const scientificValue = scientificDisplay(value);
-  if (scientificValue) {
+  const numericValue = String(value).trim();
+  if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(numericValue)) {
+    const scientificValue = scientificDisplay(numericValue);
     return (
-      <span className={`natural-display ${className}`}>{scientificValue}</span>
+      <span className={`natural-display ${className}`}>
+        {scientificValue || displayExpression(numericValue)}
+      </span>
     );
   }
   if (
@@ -374,14 +378,16 @@ export default function Calculator({
 
   function insertFraction() {
     if (expr) {
-      insert("/");
+      const nextExpr = `${expr.slice(0, cursor)}/()${expr.slice(cursor)}`;
+      setExpr(nextExpr);
+      setCursor(cursor + 2);
       return;
     }
     const startingValue =
       display !== "Math ERROR" && display !== "0" ? display : "";
-    const nextExpr = `${startingValue}/`;
+    const nextExpr = `${startingValue}/()`;
     setExpr(nextExpr);
-    setCursor(startingValue.length);
+    setCursor(startingValue.length + 2);
     setError(false);
   }
 
@@ -565,6 +571,14 @@ export default function Calculator({
 
   useEffect(() => {
     function handleKeyboard(event) {
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest(
+          "input, select, textarea, [contenteditable='true']",
+        )
+      ) {
+        return;
+      }
       const keyMap = {
         ArrowLeft: "LEFT",
         ArrowRight: "RIGHT",
@@ -574,9 +588,20 @@ export default function Calculator({
         Delete: "DEL",
       };
       const buttonId = keyMap[event.key];
-      if (!buttonId) return;
-      event.preventDefault();
-      press({ id: buttonId });
+      if (buttonId) {
+        event.preventDefault();
+        press({ id: buttonId });
+        return;
+      }
+      if (event.key === "Enter" || event.key === "=") {
+        event.preventDefault();
+        press({ id: "EQ" });
+        return;
+      }
+      if (/^[0-9.+\-*/()]$/.test(event.key)) {
+        event.preventDefault();
+        insert(event.key);
+      }
     }
 
     window.addEventListener("keydown", handleKeyboard);
@@ -589,30 +614,30 @@ export default function Calculator({
         id: "CALC",
         main: "CALC",
         shift: "SOLVE",
-        cls: "k-fn",
+        cls: "k-fn calc-btn",
         topLabel: "SOLVE",
       },
       {
         id: "INTEGRAL",
         main: "integral(",
         shift: "d/dx",
-        cls: "k-fn",
+        cls: "k-fn calc-btn",
         label: "∫dx",
-        topLabel: "=",
+        topLabel: "d/dx",
         shiftLabel: "d/dx",
       },
       {
         id: "POWINV",
         main: "^(-1)",
-        cls: "k-fn",
+        cls: "k-fn calc-btn",
         label: "x⁻¹",
-        topLabel: "x!",
+        topLabel: "xⁱ",
         shiftAction: () => insert("!"),
       },
       {
         id: "LOGBLOCK",
         main: "log10(",
-        cls: "k-fn",
+        cls: "k-fn calc-btn",
         label: "log□",
         topLabel: "∑",
         shiftAction: () => insert("sum("),
@@ -750,7 +775,7 @@ export default function Calculator({
       },
       {
         id: "LP",
-        main: "(",
+        main: "( ",
         topLabel: "%",
         shiftAction: () => insert("/100"),
         cls: "k-fn",
